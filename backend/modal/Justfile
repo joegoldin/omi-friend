@@ -1,4 +1,4 @@
 deploy:
     modal deploy vad_modal.py -e main
-    modal deploy speech_profile_modal.py -e main
+    cd .. && modal deploy modal/speech_profile_modal.py -e main
 
