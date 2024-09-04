@@ -1,0 +1,2 @@
+deploy:
+    modal deploy main.py::modal_app -e main

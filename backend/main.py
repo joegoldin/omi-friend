@@ -63,6 +63,6 @@ for path in paths:
         os.makedirs(path)
 
 
-@modal_app.function(image=image, schedule=Cron('* * * * *'))
+@modal_app.function(image=image, schedule=Cron('0 * * * *'))
 async def notifications_cronjob():
     await start_cron_job()
