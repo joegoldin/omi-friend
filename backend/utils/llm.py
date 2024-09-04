@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 from typing import List, Optional
 
@@ -12,7 +11,7 @@ from models.chat import Message
 from models.facts import Fact
 from models.memory import Structured, MemoryPhoto, CategoryEnum, Memory
 from models.plugin import Plugin
-from models.transcript_segment import TranscriptSegment, ImprovedTranscript
+from models.transcript_segment import TranscriptSegment
 from utils.memories.facts import get_prompt_facts
 
 llm = ChatOpenAI(model='gpt-4o')
@@ -124,71 +123,6 @@ def get_plugin_result(transcript: str, plugin: Plugin) -> str:
 # *******************************************
 # ************* POSTPROCESSING **************
 # *******************************************
-
-def transcript_user_speech_fix(prev_transcript: str, new_transcript: str) -> int:
-    prev_transcript_tokens = num_tokens_from_string(prev_transcript)
-    count_user_appears = prev_transcript.count('User:')
-    if count_user_appears == 0:
-        return -1
-    elif prev_transcript_tokens > 10000:
-        # if count_user_appears == 1: # most likely matching was a mistake
-        #     return -1
-        first_user_appears = new_transcript.index('User:')
-        # trim first user appears
-        prev_transcript = prev_transcript[first_user_appears:min(first_user_appears + 10000, len(prev_transcript))]
-        # new_transcript = new_transcript[first_user_appears:min(first_user_appears + 10000, len(new_transcript))]
-        # further improvement
-
-    print(f'transcript_user_speech_fix prev_transcript: {len(prev_transcript)} new_transcript: {len(new_transcript)}')
-    prompt = f'''
-    You will be given a previous transcript and a improved transcript, previous transcript has the user voice identified, but the improved transcript does not have it.
-    Your task is to determine on the improved transcript, which speaker id corresponds to the user voice, based on the previous transcript.
-    It is possible that the previous transcript has wrongly detected the user, in that case, output -1.
-
-    Previous Transcript:
-    {prev_transcript}
-
-    Improved Transcript:
-    {new_transcript}
-    '''
-    with_parser = llm.with_structured_output(SpeakerIdMatch)
-    response: SpeakerIdMatch = with_parser.invoke(prompt)
-    return response.speaker_id
-
-
-def improve_transcript_prompt(segments: List[TranscriptSegment]) -> List[TranscriptSegment]:
-    cleaned = []
-    has_user = any([item.is_user for item in segments])
-    for item in segments:
-        speaker_id = item.speaker_id
-        if has_user:
-            speaker_id = item.speaker_id + 1 if not item.is_user else 0
-        cleaned.append({'speaker_id': speaker_id, 'text': item.text})
-
-    prompt = f'''
-You are a helpful assistant for correcting transcriptions of recordings. You will be given a list of voice segments, each segment contains the fields (speaker id, text, and seconds [start, end])
-
-The transcription has a Word Error Rate of about 15% in english, in other languages could be up to 25%, and it is specially bad at speaker diarization.
-
-Your task is to improve the transcript by taking the following steps:
-
-1. Make the conversation coherent, if someone reads it, it should be clear what the conversation is about, remember the estimate percentage of WER, this could include missing words, incorrectly transcribed words, missing connectors, punctuation signs, etc.
-
-2. The speakers ids are most likely inaccurate, make sure to assign the correct speaker id to each segment, by understanding the whole conversation. For example, 
-- The transcript could have 4 different speakers, but by analyzing the overall context, one can discover that it was only 2, and the speaker identification, took incorrectly multiple people.
-- The transcript could have 1 single speaker, or 2, but in reality was 3.
-- The speaker id might be assigned incorrectly, a conversation could have speaker 0 said "Hi, how are you", and then also speaker 0 said "I'm doing great, thanks for asking" which of course would be incorrect.
-
-Considerations:
-- Return a list of segments same size as the input.
-- Do not change the order of the segments.
-
-Transcript segments:
-{json.dumps(cleaned, indent=2)}'''
-
-    with_parser = llm.with_structured_output(ImprovedTranscript)
-    response: ImprovedTranscript = with_parser.invoke(prompt)
-    return response.result
 
 
 # **************************************
@@ -381,6 +315,8 @@ class SummaryOutput(BaseModel):
 
 
 def chunk_extraction(segments: List[TranscriptSegment], topics: List[str]) -> str:
+    _chat = ChatOpenAI(model="gpt-4o-mini")
+
     content = TranscriptSegment.segments_as_string(segments)
     prompt = f'''
     You are an experienced detective, your task is to extract the key points of the conversation related to the topics you were provided.
@@ -394,7 +330,7 @@ def chunk_extraction(segments: List[TranscriptSegment], topics: List[str]) -> st
 
     Topics: {topics}
     '''
-    with_parser = llm.with_structured_output(SummaryOutput)
+    with_parser = _chat.with_structured_output(SummaryOutput)
     response: SummaryOutput = with_parser.invoke(prompt)
     return response.summary
 
