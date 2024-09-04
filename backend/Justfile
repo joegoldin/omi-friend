@@ -1,2 +1,6 @@
+server:
+    uvicorn main:app --reload --env-file .env
+
 deploy:
     modal deploy main.py::modal_app -e main
+
