@@ -29,7 +29,7 @@ os.makedirs('_temp', exist_ok=True)
     keep_warm=0,
     memory=(1024, 2048),
     cpu=4,
-    secrets=[Secret.from_name('huggingface-token')],
+    secrets=[Secret.from_name('envs')],
 )
 @web_endpoint(method='POST')
 def endpoint(file: UploadFile):

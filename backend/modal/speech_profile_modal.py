@@ -107,7 +107,7 @@ os.makedirs('_temp', exist_ok=True)
     allow_concurrent_inputs=2,
     cpu=4,
     gpu=modal.gpu.T4(count=1),
-    secrets=[Secret.from_name('huggingface-token'), Secret.from_name('envs'), Secret.from_name("gcp-credentials")],
+    secrets=[Secret.from_name('envs'), Secret.from_name("gcp-credentials")],
 )
 @web_endpoint(method='POST')
 def endpoint(uid: str, audio_file: UploadFile = File(...), segments: str = Form(...)) -> List[ResponseItem]:
