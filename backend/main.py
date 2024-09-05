@@ -46,7 +46,7 @@ image = (
 
 @modal_app.function(
     image=image,
-    keep_warm=2,
+    keep_warm=0,
     memory=(512, 1024),
     cpu=2,
     allow_concurrent_inputs=10,

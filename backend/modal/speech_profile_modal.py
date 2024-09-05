@@ -103,7 +103,7 @@ os.makedirs('_temp', exist_ok=True)
 
 @app.function(
     image=image,
-    keep_warm=1,
+    keep_warm=0,
     memory=(1024, 2048),
     allow_concurrent_inputs=2,
     cpu=4,
