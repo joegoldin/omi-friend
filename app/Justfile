@@ -1,0 +1,14 @@
+flutter-get:
+    flutter pub get
+
+build: flutter-get
+    dart run build_runner build
+
+set-path:
+    set -x PATH "/Users/joe/Development/Third-Party/omi/app/flutter/bin:$PATH"
+    set -x PATH "$HOME/.pub-cache/bin:$PATH"
+
+flutterfire:
+    flutterfire config --out=lib/firebase_options_dev.dart --ios-bundle-id=com.friend-app-with-wearable.ios12.joe.develop --android-app-id=com.friend.ios.dev --android-out=android/app/src/dev/  --ios-out=ios/Config/Dev/
+    flutterfire config --out=lib/firebase_options_prod.dart --ios-bundle-id=com.friend-app-with-wearable.joe.ios12 --android-app-id=com.friend.ios --android-out=android/app/src/prod/  --ios-out=ios/Config/Prod/
+
