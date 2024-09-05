@@ -94,6 +94,12 @@ def get_transcript_structure(transcript: str, started_at: datetime, language_cod
         'language_code': language_code,
         'started_at': started_at.isoformat(),
     })
+
+    for event in (response.events or []):
+        if event.duration > 180:
+            event.duration = 180
+        event.created = False
+
     return response
 
 
@@ -148,18 +154,6 @@ def summarize_open_glass(photos: List[MemoryPhoto]) -> Structured:
 # ************* EXTERNAL INTEGRATIONS **************
 # **************************************************
 
-def summarize_screen_pipe(description: str) -> Structured:
-    prompt = f'''The user took a series of screenshots from his laptop, and used OCR to obtain the text from the screen.
-
-      For the title, use the main topic of the scenes.
-      For the overview, condense the descriptions into a brief summary with the main topics discussed, make sure to capture the key points and important details.
-      For the category, classify the scenes into one of the available categories.
-    
-      Screenshots: ```{description}```
-      '''.replace('    ', '').strip()
-    # return groq_llm_with_parser.invoke(prompt)
-    return llm_with_parser.invoke(prompt)
-
 
 def summarize_experience_text(text: str) -> Structured:
     prompt = f'''The user sent a text of their own experiences or thoughts, and wants to create a memory from it.
@@ -183,11 +177,10 @@ def get_memory_summary(uid: str, memories: List[Memory]) -> str:
     You are an experienced mentor, that helps people achieve their goals and improve their lives.
     You are advising {user_name} right now, {facts_str}
     
-    
-    The following are a list of ${user_name}'s conversations from today, with the transcripts and a slight summary of each, that ${user_name} had during his day.
+    The following are a list of {user_name}'s conversations from today, with the transcripts and a slight summary of each, that {user_name} had during his day.
     {user_name} wants to get a summary of the key action items {user_name} has to take based on today's conversations.
 
-    Remember ${user_name} is busy so this has to be very efficient and concise.
+    Remember {user_name} is busy so this has to be very efficient and concise.
     Respond in at most 50 words.
   
     Output your response in plain text, without markdown.
