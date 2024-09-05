@@ -1,7 +1,10 @@
 flutter-get:
     flutter pub get
 
-build: flutter-get
+pod:
+    cd ios && pod install && pod repo update
+
+build: flutter-get pod
     dart run build_runner build
 
 set-path:
