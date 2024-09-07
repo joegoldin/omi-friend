@@ -3,14 +3,11 @@ import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:friend_private/backend/http/cloud_storage.dart';
 import 'package:friend_private/backend/preferences.dart';
-import 'package:friend_private/backend/schema/memory.dart';
 import 'package:friend_private/backend/schema/plugin.dart';
 import 'package:friend_private/main.dart';
 import 'package:friend_private/pages/capture/connect.dart';
-import 'package:friend_private/pages/capture/page.dart';
 import 'package:friend_private/pages/chat/page.dart';
 import 'package:friend_private/pages/home/device.dart';
 import 'package:friend_private/pages/memories/page.dart';
@@ -60,10 +57,7 @@ class _HomePageWrapperState extends State<HomePageWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => HomeProvider(),
-      child: const HomePage(),
-    );
+    return const HomePage();
   }
 }
 
@@ -76,11 +70,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver, TickerProviderStateMixin {
   ForegroundUtil foregroundUtil = ForegroundUtil();
-  TabController? _controller;
   List<Widget> screens = [Container(), const SizedBox(), const SizedBox(), const SizedBox()];
-
-  FocusNode chatTextFieldFocusNode = FocusNode(canRequestFocus: true);
-  FocusNode memoriesTextFieldFocusNode = FocusNode(canRequestFocus: true);
 
   GlobalKey<ChatPageState> chatPageKey = GlobalKey();
 
@@ -125,13 +115,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
 
   @override
   void initState() {
-    // TODO: Being triggered multiple times during navigation. It ideally shouldn't
-    _controller = TabController(
-      length: 3,
-      vsync: this,
-      initialIndex: SharedPreferencesUtil().pageToShowFromNotification,
-    );
-    SharedPreferencesUtil().pageToShowFromNotification = 1;
+    SharedPreferencesUtil().pageToShowFromNotification = 0; // TODO: whatisit
     SharedPreferencesUtil().onboardingCompleted = true;
 
     WidgetsBinding.instance.addObserver(this);
@@ -171,17 +155,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
     });
   }
 
-  _tabChange(int index) {
-    MixpanelManager().bottomNavigationTabClicked(['Memories', 'Device', 'Chat'][index]);
-    FocusScope.of(context).unfocus();
-    context.read<HomeProvider>().setIndex(index);
-    _controller!.animateTo(index);
-  }
-
   @override
   Widget build(BuildContext context) {
-    return WithForegroundTask(
-        child: MyUpgradeAlert(
+    return MyUpgradeAlert(
       upgrader: _upgrader,
       dialogStyle: Platform.isIOS ? UpgradeDialogStyle.cupertino : UpgradeDialogStyle.material,
       child: Consumer<ConnectivityProvider>(builder: (ctx, connectivityProvider, child) {
@@ -243,116 +219,84 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
 
         return Scaffold(
           backgroundColor: Theme.of(context).colorScheme.primary,
-          body: GestureDetector(
-            onTap: () {
-              FocusScope.of(context).unfocus();
-              chatTextFieldFocusNode.unfocus();
-              memoriesTextFieldFocusNode.unfocus();
-            },
-            child: Consumer2<HomeProvider, mp.MemoryProvider>(builder: (context, provider, memProvider, child) {
-              return Stack(
+          body: DefaultTabController(
+            length: 2,
+            initialIndex: SharedPreferencesUtil().pageToShowFromNotification,
+            child: GestureDetector(
+              onTap: () {
+                primaryFocus?.unfocus();
+                context.read<HomeProvider>().memoryFieldFocusNode.unfocus();
+                context.read<HomeProvider>().chatFieldFocusNode.unfocus();
+              },
+              child: Stack(
                 children: [
                   Center(
                     child: TabBarView(
-                      controller: _controller,
+                      // controller: _controller,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
-                        MemoriesPage(
-                          textFieldFocusNode: memoriesTextFieldFocusNode,
-                        ),
-                        const CapturePage(),
+                        const MemoriesPage(),
                         ChatPage(
                           key: chatPageKey,
-                          textFieldFocusNode: chatTextFieldFocusNode,
-                          updateMemory: (ServerMemory memory) {
-                            memProvider.updateMemory(memory);
-                          },
                         ),
                       ],
                     ),
                   ),
-                  if (chatTextFieldFocusNode.hasFocus || memoriesTextFieldFocusNode.hasFocus)
-                    const SizedBox.shrink()
-                  else
-                    Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        margin: const EdgeInsets.fromLTRB(16, 16, 16, 40),
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          borderRadius: BorderRadius.all(Radius.circular(16)),
-                          border: GradientBoxBorder(
-                            gradient: LinearGradient(colors: [
-                              Color.fromARGB(127, 208, 208, 208),
-                              Color.fromARGB(127, 188, 99, 121),
-                              Color.fromARGB(127, 86, 101, 182),
-                              Color.fromARGB(127, 126, 190, 236)
-                            ]),
-                            width: 2,
+                  Consumer<HomeProvider>(builder: (context, home, child) {
+                    if (home.chatFieldFocusNode.hasFocus || home.memoryFieldFocusNode.hasFocus) {
+                      return const SizedBox.shrink();
+                    } else {
+                      return Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Container(
+                          margin: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+                          decoration: const BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.all(Radius.circular(16)),
+                            border: GradientBoxBorder(
+                              gradient: LinearGradient(colors: [
+                                Color.fromARGB(127, 208, 208, 208),
+                                Color.fromARGB(127, 188, 99, 121),
+                                Color.fromARGB(127, 86, 101, 182),
+                                Color.fromARGB(127, 126, 190, 236)
+                              ]),
+                              width: 2,
+                            ),
+                            shape: BoxShape.rectangle,
                           ),
-                          shape: BoxShape.rectangle,
+                          child: TabBar(
+                            padding: const EdgeInsets.only(top: 10, bottom: 10),
+                            onTap: (index) {
+                              MixpanelManager().bottomNavigationTabClicked(['Memories', 'Chat'][index]);
+                              primaryFocus?.unfocus();
+                              home.setIndex(index);
+                            },
+                            indicatorColor: Colors.transparent,
+                            tabs: [
+                              Tab(
+                                child: Text(
+                                  'Memories',
+                                  style: TextStyle(
+                                    color: home.selectedIndex == 0 ? Colors.white : Colors.grey,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                              Tab(
+                                child: Text(
+                                  'Chat',
+                                  style: TextStyle(
+                                    color: home.selectedIndex == 1 ? Colors.white : Colors.grey,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: MaterialButton(
-                                onPressed: () => _tabChange(0),
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 20, bottom: 20),
-                                  child: Text(
-                                    'Memories',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: provider.selectedIndex == 0 ? Colors.white : Colors.grey,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: MaterialButton(
-                                onPressed: () => _tabChange(1),
-                                child: Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: 20,
-                                    bottom: 20,
-                                  ),
-                                  child: Text(
-                                    'Capture',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: provider.selectedIndex == 1 ? Colors.white : Colors.grey,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: MaterialButton(
-                                onPressed: () => _tabChange(2),
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 20, bottom: 20),
-                                  child: Text(
-                                    'Chat',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: provider.selectedIndex == 2 ? Colors.white : Colors.grey,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                      );
+                    }
+                  }),
                   if (scriptsInProgress)
                     Center(
                       child: Container(
@@ -384,8 +328,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                   else
                     const SizedBox.shrink(),
                 ],
-              );
-            }),
+              ),
+            ),
           ),
           appBar: AppBar(
             automaticallyImplyLeading: false,
@@ -471,45 +415,46 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
                     );
                   }
                 }),
-                Consumer2<PluginProvider, HomeProvider>(builder: (context, provider, home, child) {
-                  if (home.selectedIndex != 2) {
-                    return SizedBox(
-                      width: 16,
-                    );
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: DropdownButton<String>(
-                        menuMaxHeight: 350,
-                        value: SharedPreferencesUtil().selectedChatPluginId,
-                        onChanged: (s) async {
-                          if ((s == 'no_selected' && provider.plugins.where((p) => p.enabled).isEmpty) ||
-                              s == 'enable') {
-                            await routeToPage(context, const PluginsPage(filterChatOnly: true));
-                            return;
-                          }
-                          print('Selected: $s prefs: ${SharedPreferencesUtil().selectedChatPluginId}');
-                          if (s == null || s == SharedPreferencesUtil().selectedChatPluginId) return;
-
-                          SharedPreferencesUtil().selectedChatPluginId = s;
-                          var plugin = provider.plugins.firstWhereOrNull((p) => p.id == s);
-                          chatPageKey.currentState?.sendInitialPluginMessage(plugin);
-                        },
-                        icon: Container(),
-                        alignment: Alignment.center,
-                        dropdownColor: Colors.black,
-                        style: const TextStyle(color: Colors.white, fontSize: 16),
-                        underline: Container(height: 0, color: Colors.transparent),
-                        isExpanded: false,
-                        itemHeight: 48,
-                        padding: EdgeInsets.zero,
-                        items: _getPluginsDropdownItems(context, provider),
+                Consumer2<PluginProvider, HomeProvider>(
+                  builder: (context, provider, home, child) {
+                    if (home.selectedIndex != 1) {
+                      return const SizedBox(
+                        width: 16,
+                      );
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: DropdownButton<String>(
+                          menuMaxHeight: 350,
+                          value: SharedPreferencesUtil().selectedChatPluginId,
+                          onChanged: (s) async {
+                            if ((s == 'no_selected' && provider.plugins.where((p) => p.enabled).isEmpty) ||
+                                s == 'enable') {
+                              await routeToPage(context, const PluginsPage(filterChatOnly: true));
+                              return;
+                            }
+                            print('Selected: $s prefs: ${SharedPreferencesUtil().selectedChatPluginId}');
+                            if (s == null || s == SharedPreferencesUtil().selectedChatPluginId) return;
+                            SharedPreferencesUtil().selectedChatPluginId = s;
+                            var plugin = provider.plugins.firstWhereOrNull((p) => p.id == s);
+                            chatPageKey.currentState?.sendInitialPluginMessage(plugin);
+                          },
+                          icon: Container(),
+                          alignment: Alignment.center,
+                          dropdownColor: Colors.black,
+                          style: const TextStyle(color: Colors.white, fontSize: 16),
+                          underline: Container(height: 0, color: Colors.transparent),
+                          isExpanded: false,
+                          itemHeight: 48,
+                          padding: EdgeInsets.zero,
+                          items: _getPluginsDropdownItems(context, provider),
+                        ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  },
+                ),
                 IconButton(
                   icon: const Icon(Icons.settings, color: Colors.white, size: 30),
                   onPressed: () async {
@@ -531,7 +476,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
           ),
         );
       }),
-    ));
+    );
   }
 
   _getPluginsDropdownItems(BuildContext context, PluginProvider provider) {
@@ -597,7 +542,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Ticker
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
     ForegroundUtil.stopForegroundTask();
     super.dispose();
   }
